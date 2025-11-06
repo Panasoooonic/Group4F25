@@ -1,13 +1,14 @@
 const express = require("express");
 const { sqlPool } = require("./config/database");
+const userRoutes = require('./routes/userRoutes.js');
 const app = express();
 const port = 3000;
 
-app.get("/", async (req, res) => {
-  // SQL Example
-  const result = await sqlPool.query("SELECT * FROM Teams");
-  res.send(result);
-});
+app.use(express.json());
+
+
+app.use("/api", userRoutes);
+
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
