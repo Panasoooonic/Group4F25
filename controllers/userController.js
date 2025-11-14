@@ -1,5 +1,5 @@
 const {sqlPool} = require('../config/database');
-
+const user = require('../models/user');
 
 //register user 
 const registerUser = async (req, res) => {
@@ -15,19 +15,14 @@ const registerUser = async (req, res) => {
             return res.status(400).json({message: "Invalid email address"});
         }
 
-       // check if user already exists by email
-       const [existingUser] = await sqlPool.query('SELECT * FROM users WHERE email = ?', [email]);
-       if(existingUser.length > 0){
-        return res.status(409).json({message: "Account already exists with this email"});
-       }
-
-       // insert new user into database
-       const [result] = await sqlPool.query(
-        'insert into users (firstName, lastName, email, password) values (?, ?, ?, ?)',
-        [firstName, lastName, email, password]
-     );
+       
+       const existing = await user.findbyEmail(email);
+         if(existing){
+            return res.status(409).json({message: "An account with this email already exists"});
+        }
         
-        res.status(201).json({message:"User registered successfully"});
+        await user.create(firstName, lastName, email, password);
+        res.status(201).json({message: "User registered successfully"});
 
     } catch (error) {
         console.error('Registration error:', error);
@@ -46,16 +41,14 @@ const loginUser = async (req, res) => {
         if(!email || !password){
             return res.status(400).json({message: "Email and password are required"});
         }
-
-        // check if user exists by email
-        const [userResult] = await sqlPool.query('SELECT * FROM users WHERE email = ?',[email]);
-        if(userResult.length === 0){
-            return res.status(404).json({message: "No account found with this email"});
+        
+        const existing = await user.findbyEmail (email);
+        if(!existing){
+            return res.status(404).json({message:"Account not found with this email"});
         }
-        const user = userResult[0];
 
         //check if passwords match
-        if(user.password !== password){
+        if(existing.password !== password){
             return res.status(401).json({message:"Incorrect password"});
         }
 

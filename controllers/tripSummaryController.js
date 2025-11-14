@@ -1,4 +1,4 @@
-const {sqlPool} = require('../config/database');
+const tripSummary = require('../models/tripSummary');
 
 const getSummaryByTrip = async (req,res) =>{
 
