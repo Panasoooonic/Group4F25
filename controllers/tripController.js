@@ -1,11 +1,16 @@
-const {sqlPool} = requires('../config/database');
+const { sqlPool } = require('../config/database');
 
-const startTrip = async (req,res) =>{
-
-};
-
-const endTrip = async (req,res) =>{
+const startTrip = async (req, res) => {
+    res.send('Trip Started');
 
 };
 
-module.exports = { startTrip,endTrip}
+const logTelemetry = async (req, res) => {
+
+}
+
+const endTrip = async (req, res) => {
+
+};
+
+module.exports = { startTrip, endTrip, logTelemetry }

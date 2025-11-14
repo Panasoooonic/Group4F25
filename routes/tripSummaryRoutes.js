@@ -1,15 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { getSummaryByTrip, getSummaryByTrip} = require('../controllers/tripSummaryController');
+const { getSummaryByTrip, getAllSummariesByUser} = require('../controllers/tripSummaryController');
 const { sqlPool } = require('../config/database');
 
+//Test for /api/ user route
 
-const getSummaryByTrip = async (req,res) =>{
+router.get('/summary', getSummaryByTrip);
+router.get('/summary/:user', getAllSummariesByUser);
 
-};
-
-const getAllSummariesByUser = async (req,res) =>{
-
-};
-
-module.exports = { getSummaryByTrip, getAllSummariesByUser}
+module.exports = router;
