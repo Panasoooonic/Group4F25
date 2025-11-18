@@ -76,9 +76,3 @@ CREATE TABLE TripEvent (
 );
 
 
-insert into users(firstName, LastName, email, password)
-values
-("Michael","Thomson","mthomson9322@conestogac.on.ca","1234");
-
-
-select * from users;
