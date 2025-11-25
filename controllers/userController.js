@@ -69,8 +69,41 @@ const loginUser = async (req, res) => {
     }
 }
 
+const updatePassword = async (req,res) => {
+
+    try { const {email, oldPassword, newPassword } = req.body;
+
+        // ensure all fields are provided
+        if (!email || !oldPassword || !newPassword) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+        // find user in database
+        const [userResult] = await sqlPool.query('SELECT * FROM users WHERE email = ?', [email]);
+
+        if (userResult.length === 0) {
+            return res.status(404).json({ message: "No account found with this email" });
+        }
+
+        const user = userResult[0];
+
+        if(user.password !== oldPassword){
+            return res.status(401).json({message:"Incorrect old password"});
+        }
+
+        await sqlPool.query('UPDATE users SET password = ? WHERE email = ?', [newPassword, email]);
+        res.status(200).json({ message: "Password updated successfully" });
+    } catch (error) {
+        console.error("Password update error: ", error);
+        res.status(500).json({ message: "Error updating password" });
+    }
 
 
-module.exports = { registerUser, loginUser };
+
+};
+
+
+
+
+module.exports = { registerUser, loginUser,updatePassword };
 
 
