@@ -18,13 +18,13 @@ function haversine(lat1, lon1, lat2, lon2) {
 
 const startTrip = async (req, res) => {
   try {
-    const { user_id } = req.body;
+    const { userId } = req.body;
 
     const [result] = await sqlPool.query(
-      "INSERT INTO trips (user_id, start_time) VALUES (?, NOW())",
-      [user_id]
+      "INSERT INTO trip (userId, startTs) VALUES (?, NOW())",
+      [userId]
     );
-
+  
     res.json({
       message: "Trip started",
       trip_id: result.insertId,
@@ -41,7 +41,7 @@ const addTripPoint = async (req, res) => {
     const { latitude, longitude } = req.body;
 
     await sqlPool.query(
-      "INSERT INTO trip_points (trip_id, latitude, longitude, recorded_at) VALUES (?, ?, ?, NOW())",
+      "INSERT INTO TelemetryPoint (tripId, latitude, longitude, timestamp) VALUES (?, ?, ?, NOW())",
       [tripId, latitude, longitude]
     );
 
@@ -61,10 +61,10 @@ const endTrip = async (req, res) => {
     const { tripId } = req.params;
 
     const [points] = await sqlPool.query(
-      "SELECT latitude, longitude FROM trip_points WHERE trip_id = ? ORDER BY recorded_at ASC",
+      "SELECT latitude, longitude FROM TelemetryPoint WHERE tripId = ? ORDER BY timestamp ASC",
       [tripId]
     );
-
+  
     if (points.length < 2) {
       return res.status(400).json({
         error: "Not enough points to calculate distance",
@@ -82,13 +82,13 @@ const endTrip = async (req, res) => {
     }
 
     await sqlPool.query(
-      "UPDATE trips SET end_time = NOW(), total_distance_km = ? WHERE id = ?",
+      "UPDATE trip SET endTs = NOW(), distanceKM = ? WHERE tripId = ?",
       [totalDistance, tripId]
     );
 
     res.json({
       message: "Trip ended",
-      total_distance_km: totalDistance.toFixed(2),
+      distanceKM: totalDistance.toFixed(2),
       route_points: points,
     });
   } catch (error) {
@@ -102,12 +102,12 @@ const getTripSummary = async (req, res) => {
     const { tripId } = req.params;
 
     const [[trip]] = await sqlPool.query(
-      "SELECT * FROM trips WHERE id = ?",
+      "SELECT * FROM trip WHERE tripId = ?",
       [tripId]
     );
 
     const [points] = await sqlPool.query(
-      "SELECT latitude, longitude, recorded_at FROM trip_points WHERE trip_id = ?",
+      "SELECT latitude, longitude, timestamp FROM TelemetryPoint WHERE tripId = ?",
       [tripId]
     );
 
@@ -120,5 +120,6 @@ const getTripSummary = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 module.exports = { startTrip, addTripPoint, endTrip, getTripSummary };
