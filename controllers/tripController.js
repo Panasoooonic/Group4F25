@@ -1,4 +1,4 @@
-const { sqlPool } = require('../config/database');
+const { sqlPool } = require("../config/database");
 
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371; // km
@@ -9,25 +9,23 @@ function haversine(lat1, lon1, lat2, lon2) {
 
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-    Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) ** 2;
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 const startTrip = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, vehicleId } = req.body;
 
     const [result] = await sqlPool.query(
-      "INSERT INTO trip (userId, startTs, status) VALUES (?, NOW(), 'Started')",
-      [userId]
+      "INSERT INTO trip (userId, vehicleId, startTs, status) VALUES (?, ?, NOW(), 'Started')",
+      [userId, vehicleId]
     );
 
     res.json({
       message: "Trip started",
-      trip_id: result.insertId,
+      tripId: result.insertId,
     });
   } catch (error) {
     console.log(error);
@@ -38,15 +36,14 @@ const startTrip = async (req, res) => {
 const addTripPoint = async (req, res) => {
   try {
     const { tripId } = req.params;
-    const { latitude, longitude, speed, acceleration } = req.body;
+    let { latitude, longitude, speed, acceleration } = req.body;
+    speed = Number(speed) || 0;
+    acceleration = Number(acceleration) || 0;
 
     const [previousPoint] = await sqlPool.query(
       "SELECT * FROM TelemetryPoint WHERE tripId = ? ORDER BY timestamp DESC LIMIT 1",
       [tripId]
     );
-
-    console.log(previousPoint)
-
 
     await sqlPool.query(
       "INSERT INTO TelemetryPoint (tripId, latitude, longitude, speed, acceleration, timestamp) VALUES (?, ?, ?, ?, ?, NOW())",
@@ -58,7 +55,6 @@ const addTripPoint = async (req, res) => {
       [tripId]
     );
 
-    console.log(previousPoint, point);
     // Speeding event detection
     if (previousPoint[0]?.speed <= point[0]?.speed - 20) {
       const event_type = "Speeding";
@@ -69,12 +65,20 @@ const addTripPoint = async (req, res) => {
       await sqlPool.query(
         `INSERT INTO TripEvent (tripId, type, severity, peakValue, latitude, longitude, timestamp)
        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-        [tripId, event_type, severity || null, peakValue || null, latitude || null, longitude || null]
+        [
+          tripId,
+          event_type,
+          severity || null,
+          peakValue || null,
+          latitude || null,
+          longitude || null,
+        ]
       );
     }
 
     // Harsh braking event detection
     if (previousPoint[0]?.speed > point[0].speed + 20) {
+      console.log(previousPoint, point);
       const event_type = "Harsh_Brake";
       const severity = 8;
       const peakValue = previousPoint[0].speed - point[0].speed;
@@ -83,7 +87,14 @@ const addTripPoint = async (req, res) => {
       await sqlPool.query(
         `INSERT INTO TripEvent (tripId, type, severity, peakValue, latitude, longitude, timestamp)
        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-        [tripId, event_type, severity || null, peakValue || null, latitude || null, longitude || null]
+        [
+          tripId,
+          event_type,
+          severity || null,
+          peakValue || null,
+          latitude || null,
+          longitude || null,
+        ]
       );
     }
 
@@ -93,7 +104,6 @@ const addTripPoint = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-
 
 const endTrip = async (req, res) => {
   try {
@@ -108,7 +118,7 @@ const endTrip = async (req, res) => {
       return res.status(404).json({ error: "Trip not found" });
     }
 
-    if (tripExists[0].status === 'Ended') {
+    if (tripExists[0].status === "Ended") {
       return res.status(400).json({ error: "Trip already ended" });
     }
 
@@ -154,10 +164,9 @@ const endTrip = async (req, res) => {
       [tripId]
     );
 
-    await sqlPool.query( 
-      "UPDATE trip SET endTs = NOW() WHERE tripId = ?",
-      [tripId]
-    );
+    await sqlPool.query("UPDATE trip SET endTs = NOW() WHERE tripId = ?", [
+      tripId,
+    ]);
 
     const [totalDuration] = await sqlPool.query(
       "SELECT endTs - startTs as durationSec FROM trip WHERE tripId = ?",
@@ -171,19 +180,30 @@ const endTrip = async (req, res) => {
 
     await sqlPool.query(
       "UPDATE trip SET distanceKM = ?, durationSec = ?, averageSpeedKph = ?, status = 'Ended' WHERE tripId = ?",
-      [totalDistance, totalDuration[0].durationSec, averageSpeedKph[0].avgSpeed, tripId]
+      [
+        totalDistance,
+        totalDuration[0].durationSec,
+        averageSpeedKph[0].avgSpeed,
+        tripId,
+      ]
     );
 
     // Calculate total score based on events
     var TotalScore = 100;
-    TotalScore -= rapidAccelCount[0]['count(*)'] * 2;
-    TotalScore -= harshBrakingCount[0]['count(*)'] * 3;
+    TotalScore -= rapidAccelCount[0]["count(*)"] * 2;
+    TotalScore -= harshBrakingCount[0]["count(*)"] * 3;
     if (TotalScore < 0) TotalScore = 0;
 
     await sqlPool.query(
       "INSERT INTO TripSummary (tripId, eventsCount, rapidAccelCount, harshBrakingCount, maxSpeed,scoreTotal) VALUES (?, ?, ?, ?, ?, ?)",
-      [tripId, eventsCount[0]['count(*)'], rapidAccelCount[0]['count(*)'], harshBrakingCount[0]['count(*)'], maxSpeed[0]['max(peakValue)'],
-        TotalScore]
+      [
+        tripId,
+        eventsCount[0]["count(*)"],
+        rapidAccelCount[0]["count(*)"],
+        harshBrakingCount[0]["count(*)"],
+        maxSpeed[0]["max(peakValue)"],
+        TotalScore,
+      ]
     );
 
     const [tripSummary] = await sqlPool.query(
@@ -191,13 +211,10 @@ const endTrip = async (req, res) => {
       [tripId]
     );
 
-
-
     res.json({
       message: "Trip ended",
-      ...tripSummary[0],
+      result: tripSummary[0],
     });
-
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Server error" });

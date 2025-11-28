@@ -3,8 +3,10 @@ const userRoutes = require("./routes/userRoutes.js");
 const tripRoutes = require("./routes/tripRoutes.js");
 const tripSummaryRoutes = require("./routes/tripSummaryRoutes.js");
 const vehicleRoutes = require("./routes/vehicleRoutes.js");
-const app = express();
 const cors = require("cors");
+ const morgan = require('morgan');
+
+const app = express();
 const port = 3000;
 
 // Allow requests from http://localhost:8081
@@ -14,6 +16,7 @@ app.use(
   })
 );
 
+app.use(morgan('dev'));
 app.use(express.json());
 
 app.use("/api", userRoutes);
